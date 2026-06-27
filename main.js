@@ -26,6 +26,7 @@ async function cargarDashboard() {
         ],
       },
       options: {
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -59,6 +60,7 @@ async function cargarDashboard() {
         ],
       },
       options: {
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -91,6 +93,7 @@ async function cargarDashboard() {
         ],
       },
       options: {
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -131,6 +134,7 @@ async function cargarDashboard() {
         ],
       },
       options: {
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -180,6 +184,7 @@ async function cargarDashboard() {
         ],
       },
       options: {
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -221,6 +226,7 @@ async function cargarDashboard() {
         ],
       },
       options: {
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -258,6 +264,7 @@ async function cargarDashboard() {
         ],
       },
       options: {
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
