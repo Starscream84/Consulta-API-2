@@ -1,325 +1,211 @@
-async function cargarDashboard() {
-  try {
-    // API 1: ESTUDIANTES - Composición por nivel
-
-    const resEstudiantes = await fetch(
-      // Llama a la API
-      "https://apidemo.geoeducacion.com.ar/api/testing/estudiantes/1",
-    );
-    const jsonEstudiantes = await resEstudiantes.json(); // Convierte la respuesta a un objeto Javascript
-    const estudiantes = jsonEstudiantes.data; // Accede al array de datos dentro del objeto
-
-    const porNivel = {};
-    estudiantes.forEach((e) => {
-      porNivel[e.nivel] = (porNivel[e.nivel] || 0) + 1;
-    }); // Recorre y suma + 1 a cada nivel segun corresponda
-
-    new Chart(document.getElementById("estudiantes"), {
-      type: "doughnut", // Tipo de grafico
-      data: {
-        // Los datos
-        labels: Object.keys(porNivel), // Los textos que aparecen que aparecen
-        datasets: [
-          {
-            label: "Alumnos",
-            data: Object.values(porNivel),
-            backgroundColor: [
-              "#4e79a7",
-              "#f28e2b",
-              "#59a14f",
-            ],
-          },
-        ],
-      },
-      options: {
-        // Opciones visuales
-        maintainAspectRatio: false,
-        plugins: {
-          title: {
-            display: true,
-            text: "Composición del alumnado por nivel",
-          },
-        },
-      },
-    });
-
-    // API 2: ASISTENCIA
-
-    const resAsistencia = await fetch(
-      "https://apidemo.geoeducacion.com.ar/api/testing/asistencia/1",
-    );
-    const jsonAsistencia = await resAsistencia.json();
-    const asistencia = jsonAsistencia.data;
-
-    // Gráfico 2: Nivel de asistencia GENERAL (presentes vs ausentes totales)
-    const totalPresentes = asistencia.reduce(
-      (acc, a) => acc + a.presentes,
-      0,
-    );
-    const totalAusentes = asistencia.reduce(
-      // Recorre array y va acumulando ausentes
-      (acc, a) => acc + a.ausentes,
-      0, // Valor inicial
-    );
-
-    new Chart(
-      document.getElementById("asistenciasGeneral"),
-      {
-        type: "pie",
-        data: {
-          labels: ["Presentes", "Ausentes"],
-          datasets: [
-            {
-              data: [totalPresentes, totalAusentes],
-              backgroundColor: ["#59a14f", "#e15759"],
-            },
-          ],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            title: {
-              display: true,
-              text: "Nivel de asistencia general",
-            },
-          },
-        },
-      },
-    );
-
-    // Gráfico 3: Comparación de asistencia POR CURSO
-    const cursos = asistencia.map((a) => a.curso); // Extrae los cursos
-    const presentes = asistencia.map((a) => a.presentes); // Extrae presentes
-    const ausentes = asistencia.map((a) => a.ausentes); // Extrae ausentes
-
-    new Chart(document.getElementById("asistencias"), {
-      type: "bar",
-      data: {
-        labels: cursos,
-        datasets: [
-          {
-            label: "Presentes",
-            data: presentes,
-            backgroundColor: "#59a14f",
-          },
-          {
-            label: "Ausentes",
-            data: ausentes,
-            backgroundColor: "#e15759",
-          },
-        ],
-      },
-      options: {
-        maintainAspectRatio: false,
-        plugins: {
-          title: {
-            display: true,
-            text: "Comparación de asistencia por curso",
-          },
-        },
-        scales: { y: { beginAtZero: true } },
-      },
-    });
-
-    // API 3: HISTORIAL ASISTENCIA - Evolución anual
-
-    const resHistorial = await fetch(
-      "https://apidemo.geoeducacion.com.ar/api/testing/historial_asistencia/1",
-    );
-    const jsonHistorial = await resHistorial.json();
-    const historial = jsonHistorial.data;
-
-    // Ordenar por nro_mes por las dudas
-    historial.sort((a, b) => a.nro_mes - b.nro_mes); // Ordena el array de menor a mayor
-
-    const meses = historial.map((h) => h.mes); // Extrae meses
-    const porcentajes = historial.map((h) =>
-      (h.asistencia * 100).toFixed(1),
-    );
-
-    new Chart(
-      document.getElementById("asistenciasPorMes"),
-      {
+const API_BASE = "https://apidemo.geoeducacion.com.ar/api/testing/control";
+ 
+let chart = null;
+ 
+document.getElementById("btnCargar").addEventListener("click", () => {
+    const caso = document.getElementById("caso").value;
+    cargarCaso(caso);
+});
+ 
+// Carga el caso 1 apenas se abre la página
+document.addEventListener("DOMContentLoaded", () => cargarCaso(1));
+ 
+async function cargarCaso(caso) {
+    try {
+        const res = await fetch(`${API_BASE}/${caso}`);
+        const json = await res.json();
+ 
+        if (!json.success) {
+            mostrarAlertas([], "La API no devolvió datos válidos.");
+            return;
+        }
+ 
+        const { media, lsc, lic, valores } = json.data[0];
+        const sigma = (lsc - media) / 3; // 3 sigma = distancia hasta LSC/LIC
+ 
+        dibujarGrafico(valores, media, lsc, lic);
+        const anomalias = analizarDatos(valores, media, lsc, lic, sigma);
+        mostrarAlertas(anomalias);
+        llenarTabla(valores, anomalias);
+    } catch (error) {
+        console.error(error);
+        mostrarAlertas([], "Error al consultar la API.");
+    }
+}
+ 
+function dibujarGrafico(valores, media, lsc, lic) {
+    const labels = valores.map((v) => v.x);
+    const datos = valores.map((v) => v.y);
+    const n = labels.length;
+ 
+    const ctx = document.getElementById("graficoControl");
+    if (chart) chart.destroy();
+ 
+    chart = new Chart(ctx, {
         type: "line",
         data: {
-          labels: meses,
-          datasets: [
-            {
-              label: "Asistencia (%)",
-              data: porcentajes,
-              borderColor: "#4e79a7",
-              backgroundColor: "rgba(78,121,167,0.15)",
-              fill: true,
-              tension: 0.3,
-            },
-          ],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            title: {
-              display: true,
-              text: "Evolución anual de asistencia por mes",
-            },
-          },
-          scales: {
-            y: {
-              min: 0,
-              max: 100,
-              ticks: { callback: (v) => v + "%" },
-            },
-          },
-        },
-      },
-    );
-
-    // API 4: CALIFICACIONES
-    const resCalif = await fetch(
-      "https://apidemo.geoeducacion.com.ar/api/testing/calificaciones/1",
-    );
-    const jsonCalif = await resCalif.json();
-    const calificaciones = jsonCalif.data;
-
-    // Gráfico 5: Nivel GENERAL de calificaciones (promedio aprobados/desaprobados)
-    const totalAprobados = calificaciones.reduce(
-      (acc, c) => acc + c.aprobados,
-      0,
-    );
-    const totalDesaprobados = calificaciones.reduce(
-      (acc, c) => acc + c.desaprobados,
-      0,
-    );
-    const cantCursos = calificaciones.length;
-
-    new Chart(document.getElementById("calificaciones"), {
-      type: "doughnut",
-      data: {
-        labels: ["Aprobados", "Desaprobados"],
-        datasets: [
-          {
-            data: [
-              ((totalAprobados / cantCursos) * 100).toFixed(
-                1,
-              ),
-              (
-                (totalDesaprobados / cantCursos) *
-                100
-              ).toFixed(1),
+            labels,
+            datasets: [
+                {
+                    label: "Variable",
+                    data: datos,
+                    borderColor: "#4e79a7",
+                    backgroundColor: "#4e79a7",
+                    tension: 0.2,
+                    pointRadius: 4,
+                },
+                {
+                    label: "Media (LC)",
+                    data: new Array(n).fill(media),
+                    borderColor: "#59a14f",
+                    borderDash: [6, 4],
+                    pointRadius: 0,
+                    fill: false,
+                },
+                {
+                    label: "LSC",
+                    data: new Array(n).fill(lsc),
+                    borderColor: "#e15759",
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    fill: false,
+                },
+                {
+                    label: "LIC",
+                    data: new Array(n).fill(lic),
+                    borderColor: "#e15759",
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    fill: false,
+                },
             ],
-            backgroundColor: ["#59a14f", "#e15759"],
-          },
-        ],
-      },
-      options: {
-        maintainAspectRatio: false,
-        plugins: {
-          title: {
-            display: true,
-            text: "Nivel general de calificaciones (promedio institucional)",
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) =>
-                ctx.label + ": " + ctx.raw + "%",
-            },
-          },
         },
-      },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: "Gráfico de control" },
+            },
+            scales: {
+                x: { title: { display: true, text: "Muestreo (X)" } },
+                y: { title: { display: true, text: "Variable (Y)" } },
+            },
+        },
     });
-
-    // Gráfico 6: Calificaciones POR CURSO
-    const cursosCalif = calificaciones.map((c) => c.curso);
-    const aprobadosPct = calificaciones.map((c) =>
-      (c.aprobados * 100).toFixed(1),
-    );
-    const desaprobadosPct = calificaciones.map((c) =>
-      (c.desaprobados * 100).toFixed(1),
-    );
-
-    new Chart(
-      document.getElementById("calificacionPorNivel"),
-      {
-        type: "bar",
-        data: {
-          labels: cursosCalif,
-          datasets: [
-            {
-              label: "Aprobados (%)",
-              data: aprobadosPct,
-              backgroundColor: "#59a14f",
-            },
-            {
-              label: "Desaprobados (%)",
-              data: desaprobadosPct,
-              backgroundColor: "#e15759",
-            },
-          ],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            title: {
-              display: true,
-              text: "Comparativa de calificaciones por curso",
-            },
-          },
-          scales: {
-            y: {
-              min: 0,
-              max: 100,
-              ticks: { callback: (v) => v + "%" },
-            },
-          },
-        },
-      },
-    );
-
-    // API 5: COMUNICADOS
-
-    const resComunicados = await fetch(
-      "https://apidemo.geoeducacion.com.ar/api/testing/comunicados/1",
-    );
-    const jsonComunicados = await resComunicados.json();
-    const com = jsonComunicados.data[0];
-
-    new Chart(
-      document.getElementById("envioDeComunicados"),
-      {
-        type: "bar",
-        data: {
-          labels: ["Entregados", "Pendientes", "Con error"],
-          datasets: [
-            {
-              label: "Comunicados",
-              data: [
-                com.entregados,
-                com.pendientes,
-                com.error,
-              ],
-              backgroundColor: [
-                "#59a14f",
-                "#f28e2b",
-                "#e15759",
-              ],
-            },
-          ],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            title: {
-              display: true,
-              text: `Estado de comunicados (Total: ${com.total})`,
-            },
-            legend: { display: false },
-          },
-          scales: { y: { beginAtZero: true } },
-        },
-      },
-    );
-  } catch (error) {
-    console.error("Error al cargar datos:", error);
-  }
 }
-
-cargarDashboard();
+ 
+// Detecta las 4 situaciones descriptas en la consigna
+function analizarDatos(valores, media, lsc, lic, sigma) {
+    const y = valores.map((v) => v.y);
+    const anomalias = [];
+ 
+    // Caso 1: punto(s) fuera de LSC/LIC
+    y.forEach((valor, i) => {
+        if (valor > lsc || valor < lic) {
+            anomalias.push({
+                regla: 1,
+                indice: i,
+                mensaje: `Fuera de control: la muestra ${valores[i].x} (valor ${valor}) superó el límite de control (LSC ${lsc} / LIC ${lic}).`,
+            });
+        }
+    });
+ 
+    // Caso 3: 2 de 3 puntos consecutivos más allá de 2 sigma (mismo lado)
+    const lim2Sup = media + 2 * sigma;
+    const lim2Inf = media - 2 * sigma;
+    for (let i = 0; i <= y.length - 3; i++) {
+        const ventana = y.slice(i, i + 3);
+        const arriba = ventana.filter((v) => v > lim2Sup).length;
+        const abajo = ventana.filter((v) => v < lim2Inf).length;
+        if (arriba >= 2 || abajo >= 2) {
+            anomalias.push({
+                regla: 2,
+                indice: i + 2,
+                mensaje: `Tendencia: 2 de 3 puntos consecutivos más allá de 2σ (muestras ${valores[i].x} a ${valores[i + 2].x}).`,
+            });
+            break;
+        }
+    }
+ 
+    // Caso 4: 4 de 5 puntos consecutivos más allá de 1 sigma (mismo lado)
+    const lim1Sup = media + sigma;
+    const lim1Inf = media - sigma;
+    for (let i = 0; i <= y.length - 5; i++) {
+        const ventana = y.slice(i, i + 5);
+        const arriba = ventana.filter((v) => v > lim1Sup).length;
+        const abajo = ventana.filter((v) => v < lim1Inf).length;
+        if (arriba >= 4 || abajo >= 4) {
+            anomalias.push({
+                regla: 3,
+                indice: i + 4,
+                mensaje: `Tendencia: 4 de 5 puntos consecutivos más allá de 1σ (muestras ${valores[i].x} a ${valores[i + 4].x}).`,
+            });
+            break;
+        }
+    }
+ 
+    // Caso 5: 8 puntos consecutivos del mismo lado de la línea central
+    let contador = 1;
+    let ladoAnterior = y[0] > media ? "arriba" : "abajo";
+    for (let i = 1; i < y.length; i++) {
+        const ladoActual = y[i] > media ? "arriba" : "abajo";
+        if (ladoActual === ladoAnterior) {
+            contador++;
+        } else {
+            contador = 1;
+            ladoAnterior = ladoActual;
+        }
+        if (contador >= 8) {
+            anomalias.push({
+                regla: 4,
+                indice: i,
+                mensaje: `Tendencia: 8 puntos consecutivos del mismo lado (${ladoActual}) de la línea central (hasta la muestra ${valores[i].x}).`,
+            });
+            break;
+        }
+    }
+ 
+    return anomalias;
+}
+ 
+function mostrarAlertas(anomalias, errorTexto) {
+    const cont = document.getElementById("alertas");
+    cont.innerHTML = "";
+ 
+    if (errorTexto) {
+        agregarAlerta("error", errorTexto);
+        return;
+    }
+ 
+    if (anomalias.length === 0) {
+        agregarAlerta("ok", "El proceso se encuentra bajo control. No se detectaron anomalías.");
+        return;
+    }
+ 
+    anomalias.forEach((a) => agregarAlerta("warning", a.mensaje));
+}
+ 
+function agregarAlerta(tipo, texto) {
+    const cont = document.getElementById("alertas");
+    const div = document.createElement("div");
+    div.className = `alerta alerta-${tipo}`;
+    div.textContent = texto;
+    cont.appendChild(div);
+}
+ 
+function llenarTabla(valores, anomalias) {
+    const tbody = document.querySelector("#tablaDatos tbody");
+    tbody.innerHTML = "";
+ 
+    const indicesFueraControl = new Set(
+        anomalias.filter((a) => a.regla === 1).map((a) => a.indice)
+    );
+ 
+    valores.forEach((v, i) => {
+        const tr = document.createElement("tr");
+        const estado = indicesFueraControl.has(i) ? "Fuera de control" : "Normal";
+        if (estado === "Fuera de control") tr.classList.add("fila-alerta");
+ 
+        tr.innerHTML = `<td>${v.x}</td><td>${v.y}</td><td>${estado}</td>`;
+        tbody.appendChild(tr);
+    });
+}

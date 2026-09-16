@@ -1,63 +1,51 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <link rel="stylesheet" href="./assets/styles.css" />
-    <title>Estadisticas</title>
-  </head>
-  <body>
-    <header>
-      <h1>Estadisticas educativas</h1>
-    </header>
-    <!-- Grilla de graficos -->
-    <div class="dashboard">
-      <div class="chart-card">
-        <h2>Estudiantes</h2>
-        <canvas id="estudiantes"></canvas>
-      </div>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>TP4 - Gráficos de Control</title>
+        <link rel="stylesheet" href="styles.css" />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+        <header>
+            <h1>Gráficos de Control</h1>
+            <p>Estadística y Probabilidades — TP Nro 4</p>
+        </header>
 
-      <div class="chart-card">
-        <h2>Asistencias General</h2>
-        <canvas id="asistenciasGeneral"></canvas>
-        <!-- Area de dibujo en blanco -->
-      </div>
+        <main>
+            <section class="controls">
+                <label for="caso">Seleccionar caso:</label>
+                <select id="caso">
+                    <option value="1">Caso 1 — Fuera de control</option>
+                    <option value="2">Caso 2 — Normal</option>
+                    <option value="3">Caso 3 — 2 de 3 puntos fuera de 2σ</option>
+                    <option value="4">Caso 4 — 4 de 5 puntos fuera de 1σ</option>
+                    <option value="5">Caso 5 — 8 puntos consecutivos mismo lado</option>
+                </select>
+                <button id="btnCargar">Cargar</button>
+            </section>
 
-      <div class="chart-card">
-        <h2>Asistencias</h2>
-        <canvas id="asistencias"></canvas>
-      </div>
+            <section class="chart-container">
+                <canvas id="graficoControl"></canvas>
+            </section>
 
-      <div class="chart-card">
-        <h2>Asistencias por Mes</h2>
-        <canvas id="asistenciasPorMes"></canvas>
-      </div>
+            <section id="alertas" class="alertas"></section>
 
-      <div class="chart-card">
-        <h2>Calificaciones</h2>
-        <canvas id="calificaciones"></canvas>
-      </div>
+            <section class="datos">
+                <table id="tablaDatos">
+                    <thead>
+                        <tr>
+                            <th>X (muestreo)</th>
+                            <th>Y (valor)</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+        </main>
 
-      <div class="chart-card">
-        <h2>Calificaciones por Nivel</h2>
-        <canvas id="calificacionPorNivel"></canvas>
-      </div>
-
-      <div class="chart-card">
-        <h2>Envio de Comunicados</h2>
-        <canvas id="envioDeComunicados"></canvas>
-      </div>
-    </div>
-    <footer>
-      <p>
-        © 2026 All rights reserved | Matias Rosa, Camila
-        Larsen & Matias Nerli.
-      </p>
-    </footer>
-    <script src="main.js"></script>
-  </body>
+        <script src="main.js"></script>
+    </body>
 </html>
